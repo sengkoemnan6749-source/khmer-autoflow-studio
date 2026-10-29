@@ -79,6 +79,15 @@ def get_default_configs():
                 {"tag": "@bopha", "gender": "👩 មនុស្សស្រី (Female)", "dna": "cheerful young Cambodian woman with twin braids, wearing a pastel yellow t-shirt and light blue jeans", "voice": "Leda (ស្រីចាស់ទុំ)"},
                 {"tag": "@dara", "gender": "👨 មនុស្សប្រុស (Male)", "dna": "handsome young Cambodian man with trendy short wavy black hair, wearing an open denim jacket over a white tee", "voice": "Alnilam (ប្រុសស្វាហាប់)"}
             ]
+        },
+        "💎 មន្តស្នេហ៍ស្រីរឹងមាំ (The Art of Being Weak)": {
+            "num_characters": 4,
+            "characters": [
+                {"tag": "@linda", "gender": "👩 មនុស្សស្រី (Female)", "dna": "27-year-old elegant Cambodian businesswoman, neat hairstyle, sharp intelligent eyes, confident aura, wearing stylish modern business blazer", "voice": "Kore (ស្រីរស់រវើក)"},
+                {"tag": "@phearith", "gender": "👨 មនុស្សប្រុស (Male)", "dna": "30-year-old handsome Cambodian CEO, tall, quiet stoic expression, wearing tailored navy blue suit and dress shirt", "voice": "Fenrir (ប្រុសរឹងមាំ)"},
+                {"tag": "@sokha", "gender": "👨 មនុស្សប្រុស (Male)", "dna": "28-year-old stylish Cambodian man, trendy casual shirt, arrogant selfish smirk", "voice": "Alnilam (ប្រុសស្វាហាប់)"},
+                {"tag": "@sreynoch", "gender": "👩 មនុស្សស្រី (Female)", "dna": "25-year-old attractive Cambodian woman, dramatic fake-cute expression, pastel pink dress", "voice": "Aoede (ស្រីស្រទន់)"}
+            ]
         }
     }
 
@@ -512,21 +521,61 @@ def detect_story_attributes(story_text):
 with tab_create:
     st.markdown("### ✍️ ជំហានទី ១៖ ជ្រើសរើសប្រធានបទរឿង (Quick Presets)")
     
-    c_p1, c_p2, c_p3, c_p4 = st.columns(4)
+    c_p0, c_p1, c_p2, c_p3 = st.columns([1.5, 1, 1, 1])
     preset_choice = None
+    with c_p0:
+        if st.button("💎 មន្តស្នេហ៍ស្រីរឹងមាំ (វគ្គ ១)", key="p0", help="រឿងភាគផ្លូវការរបស់មេបង: លីនដា, ភារិទ្ធ, សុខា, ស្រីណុច"):
+            preset_choice = """ឈុតទី ១៖ ជំនួបដំបូង និងពាក្យស្លាប់ (ហាងកាហ្វេ Modern Aesthetic Cafe)
+ភារិទ្ធ ភ្នែកក្រហម រុញស្រោមសំបុត្ររូបថតក្បត់ចិត្ត ទាំងសំឡេងញ័រឈឺចាប់៖ «សង្សាររបស់កញ្ញា... កំពុងដេកជាមួយសង្សារខ្ញុំ...»
+លីនដា សើចហួសចិត្តទាំងមិនជឿ៖ «លោកនិយាយលេងសើចអីហ្នឹង? ខ្ញុំនិងសង្សារស្រលាញ់គ្នាមក ៥ ឆ្នាំហើយ គាត់មិនមែនជាមនុស្សថោកទាបបែបហ្នឹងទេ...»
+
+ឈុតទី ២៖ លេសផ្ដេសផ្ដាសរបស់ប្រុសក្បត់ (កន្លែងធ្វើការ & ភោជនីយដ្ឋាន)
+លីនដា តាមទាន់សុខានៅជាមួយស្រីណុច។
+សុខា ស្រែកត្បកដោយអាត្មានិយម៖ «លីនដា! ព្រោះតែឯងរឹងមាំពេកហ្នឹងហើយ! ឈឺក៏ទៅពេទ្យខ្លួនឯង ឡានខូចក៏ជួសជុលខ្លួនឯង ឯងមិនដែលទុកឱ្យខ្ញុំជាប្រុសទេ! នៅជាមួយឯង ខ្ញុំដូចជាប្រុសអត់ប្រយោជន៍!»
+
+ឈុតទី ៣៖ សងសឹកផ្អែមល្ហែម (ភោជនីយដ្ឋាន Luxury Rooftop ពេលយប់)
+លីនដា និងភារិទ្ធ ជល់កែវស្រាសាម៉ាញចាប់ដៃសហការគ្នា។
+លីនដា ញញឹមមានមន្តស្នេហ៍៖ «បើពួកគេចូលចិត្តស្រីម្ញ៉ិកម្ញ៉ក់ទន់ជ្រាយ... ខ្ញុំនឹងបង្រៀនពួកគេឱ្យស្គាល់ថា អ្វីទៅជាមន្តស្នេហ៍ស្រីរឹងមាំពិតប្រាកដ!»
+
+ឈុតទី ៤៖ គល់ឈើចាប់ផ្ដើមលាស់ស្លឹក (ផ្ទះបាយទំនើប)
+លីនដា សម្តែងធ្វើជាបើកគម្របដបទឹកមិនរួច ញ៉ោះភារិទ្ធ៖ «លោក CEO ជួយបើកដបទឹកឱ្យខ្ញុំបន្តិចមក... ខ្ញុំទន់ដៃណាស់!»
+ភារិទ្ធ គល់ឈើអៀនឡើងក្រហមថ្ពាល់ រួចបើកទឹកឱ្យនាងទាំងញញឹមអៀន។
+
+ឈុតទី ៥៖ ធាតុត្រូវគ្នា ផ្អែមលើសស្ករ (វេរ៉ង់ដាថ្ងៃលិច)
+ភារិទ្ធ យកអាវធំមកគ្របស្មាឱ្យលីនដា ហើយសម្លឹងមើលភ្នែកនាងដោយក្តីស្រឡាញ់ស្មោះត្រង់៖ «កញ្ញាមិនបាច់ធ្វើរឹងមាំទៀតទេ... ពីពេលនេះទៅ ទុកឱ្យខ្ញុំជាអ្នកការពារកញ្ញាវិញ!»
+
+ឈុតទី ៦៖ វគ្គបញ្ចប់៖ ពេជ្រនៅតែជាពេជ្រ (ពិធីជប់លៀង Gala Dinner)
+សុខា និងស្រីណុច ធ្លាក់ខ្លួនក្ស័យធន ឈ្លោះប្រកែកគ្នាយ៉ាងអាម៉ាស់។
+ភារិទ្ធ ដើរបណ្តើរដៃលីនដាយ៉ាងអង់អាច ហើយនិយាយដាក់មុខសុខា៖ «កុំមកក្អែកក្បែរគ្រាប់ពេជ្ររបស់អ្នកដទៃ! ពេជ្រនៅតែជាពេជ្រ!»"""
+            st.session_state["num_characters_val"] = 4
+            st.session_state["sq_tag_0"] = "@linda"
+            st.session_state["sq_gen_0"] = "👩 មនុស្សស្រី (Female)"
+            st.session_state["sq_dna_0"] = "27-year-old elegant Cambodian businesswoman, neat hairstyle, sharp intelligent eyes, confident aura, wearing stylish modern business blazer"
+            st.session_state["sq_voc_0"] = "Kore"
+            
+            st.session_state["sq_tag_1"] = "@phearith"
+            st.session_state["sq_gen_1"] = "👨 មនុស្សប្រុស (Male)"
+            st.session_state["sq_dna_1"] = "30-year-old handsome Cambodian CEO, tall, quiet stoic expression, wearing tailored navy blue suit and dress shirt"
+            st.session_state["sq_voc_1"] = "Fenrir"
+            
+            st.session_state["sq_tag_2"] = "@sokha"
+            st.session_state["sq_gen_2"] = "👨 មនុស្សប្រុស (Male)"
+            st.session_state["sq_dna_2"] = "28-year-old stylish Cambodian man, trendy casual shirt, arrogant selfish smirk"
+            st.session_state["sq_voc_2"] = "Alnilam"
+            
+            st.session_state["sq_tag_3"] = "@sreynoch"
+            st.session_state["sq_gen_3"] = "👩 មនុស្សស្រី (Female)"
+            st.session_state["sq_dna_3"] = "25-year-old attractive Cambodian woman, dramatic fake-cute expression, pastel pink dress"
+            st.session_state["sq_voc_3"] = "Aoede"
     with c_p1:
-        if st.button("🎮 អូស Rank ធ្លាក់ផ្កាយ & ម៉ាស់", key="p1"):
+        if st.button("🎮 Rank & ម៉ាស់", key="p1"):
             preset_choice = "តួអង្គទាំងពីរអូស Rank យប់ជ្រៅធ្លាក់ផ្កាយ ត្រូវគេព្រូតវៃទក់សាច់ មុខបាក់ រួចនាំគ្នាទៅបិទម៉ាស់ Bioaqua ឱ្យស្អាតវិញ"
     with c_p2:
-        if st.button("🏕️ ជិះម៉ូតូទៅបោះតង់ក្នុងព្រៃ", key="p2"):
+        if st.button("🏕️ បោះតង់ក្នុងព្រៃ", key="p2"):
             preset_choice = "តួអង្គសុំម៉ែដើរលេង ម៉ែស្តីឱ្យតែអង្វរទាល់តែបានទៅ រៀបចំកាតាបជិះទៅយកមិត្តភក្តិ ជិះកាត់ផ្លូវជួបរឿងកំប្លែង ឈប់ញ៉ាំអី និងទៅដល់គោលដៅបញ្ចប់ទៅមានន័យ"
     with c_p3:
-        if st.button("👻 ខ្មោចលងក្នុងផ្ទះបុរាណ", key="p3"):
+        if st.button("👻 ផ្ទះបុរាណ", key="p3"):
             preset_choice = "តួអង្គទាំងពីរជិះកង់ទៅលេងផ្ទះឈើបុរាណមួយ ស្រាប់តែមានរឿងចម្លែកៗកើតឡើងយ៉ាងកំប្លែង"
-    with c_p4:
-        if st.button("🏛️ ដំណើរផ្សងព្រេងមហានគរ", key="p4"):
-            preset_choice = "ក្រុមអ្នកក្លាហានបានរកឃើញខ្លោងទ្វារអាថ៌កំបាំងដែលនាំទៅកាន់សម័យមហានគរដ៏រុងរឿង"
-
     default_story = preset_choice if preset_choice else "តួអង្គទាំងពីរបោះតង់ក្នុងព្រៃពេលយប់..."
     story_input = st.text_area("សរសេរគំនិតសាច់រឿងរបស់អ្នក (ឬចុចប៊ូតុងខាងលើ):", value=default_story, height=80)
 
