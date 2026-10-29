@@ -874,9 +874,11 @@ with tab_create:
         for c in chars_data
     ])
     ref_asset_lock_str = " | ".join([
-        f"Reference Asset Lock {c['tag']}: 100% visual match to uploaded {c['tag']} reference image, identical facial likeness and strictly wearing {c['dna']} with zero outfit change, strictly no hoodie, no dark jacket, no black t-shirt"
+        f"🔒REFERENCE ASSET LOCK: @{c['tag'].lstrip('@')} (100% locked to uploaded @{c['tag'].lstrip('@')} reference image, identical facial features, strictly wearing {c['dna']}, ABSOLUTELY NO hoodies, NO dark jackets, NO black tees, ZERO clothing drift)"
         for c in chars_data
     ])
+    env_prop_lock = f"🔒ENVIRONMENT & PROP LOCK: strictly preserve {location_dna} and {prop_dna} with zero environmental drift"
+    ironclad_master_lock = f"[{ref_asset_lock_str} | {env_prop_lock}]" 
     tags_str = ", ".join([c["tag"] for c in chars_data])
     squad_summary = "\n".join([f"- {c['tag']}: {c['gender_desc']}, {c['dna']}. Assigned voice: {c['voice']}." for c in chars_data])
     voice_rules = "; ".join([f"{c['tag']} uses {c['voice']}" for c in chars_data])
@@ -963,7 +965,7 @@ with tab_create:
                            - Clean frame, no text, no watermark.
 
                         Format for each scene:
-                        #scene[N] A cinematic 16:9 4K scene. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe expressive action with cinema-grade micro-movements: natural breathing, subtle head turn, expressive blinking, natural gestures]. [Camera movement: subtle slow push-in / gentle pan]. [{ref_asset_lock_str}]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
+                        #scene[N] {ironclad_master_lock}. A cinematic 16:9 4K scene. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic physical micro-movements, expressive eyes, natural posture matching the story beat]. [Camera movement: slow push-in / tracking / pan]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -988,7 +990,7 @@ with tab_create:
                            - Clean frame, no text, no watermark.
 
                         Format for each scene:
-                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic physical action, natural body posture, and vivid facial expressions matching the story beat]. [{ref_asset_lock_str}]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean live-action photo, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
+                        #scene[N] {ironclad_master_lock}. A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic physical action, natural body posture, and vivid facial expressions matching the story beat]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean live-action photo, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -1052,7 +1054,7 @@ with tab_create:
                            - All characters have identical facial likeness to character reference sheet with zero drift. Distinct individuals.
 
                         Format for each prompt:
-                        #scene[N] A cinematic 10-second 4K clip in 16:9 widescreen. Setting: [specific distinct sub-location in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic squad action, natural micro-movements, and expressions matching the user's story beat]. [{ref_asset_lock_str}]. [Camera movement]. Photorealistic live-action, natural lighting. Identical facial features and exact clothing matching character reference image with zero outfit change, strictly no hoodies, no dark jackets, zero clothing drift. Clean cinematic live-action frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, zero on-screen typography, no watermark. Voice assignment: {voice_rules}. Audio dialogue track only (spoken audio only, strictly forbidden to render visual speech bubbles): [Speaker] says, "[Short natural funny dialogue in Khmer language matching the story]"
+                        #scene[N] {ironclad_master_lock}. A cinematic 10-second 4K clip in 16:9 widescreen. Setting: [specific distinct sub-location in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic squad action, natural micro-movements, and expressions matching the user's story beat]. [Camera movement]. Photorealistic live-action, natural lighting. Identical facial features and exact clothing matching character reference image with zero outfit change, strictly no hoodies, no dark jackets, zero clothing drift. Clean cinematic live-action frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, zero on-screen typography, no watermark. Voice assignment: {voice_rules}. Audio dialogue track only (spoken audio only, strictly forbidden to render visual speech bubbles): [Speaker] says, "[Short natural funny dialogue in Khmer language matching the story]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -1197,29 +1199,59 @@ with tab_create:
                 st.text_area(f"Turnaround Prompt ({c3_tag}):", value=c3_turnaround, height=95, key="tp_c3")
 
                 # Scene Timeline
-        st.markdown("#### 🎬 ពិនិត្យមើលតាមឈុតនីមួយៗ (Timeline & Prompts)")
-        for idx, scene_content in enumerate(scenes, start=1):
-            full_scene_str = f"#scene{scene_content}"
-            khmer_speech = extract_dialogue(scene_content, story_input, idx)
+        # ----------------- ⚡ FAST TIMELINE & PROMPT ACCELERATOR -----------------
+        clean_scenes = []
+        for idx, sc_raw in enumerate(scenes, start=1):
+            sc_full = f"#scene{sc_raw}"
+            sc_dia = extract_dialogue(sc_raw, story_input, idx)
+            sc_clean = re.sub(r'Audio dialogue (?:track|script)[^:]*:.*$', '', sc_full, flags=re.IGNORECASE).strip()
+            sc_clean = re.sub(r'Voice assignment:.*$', '', sc_clean, flags=re.IGNORECASE).strip()
+            if not sc_clean.endswith('.'):
+                sc_clean += '.'
+            clean_scenes.append({
+                "idx": idx,
+                "full": sc_full,
+                "clean": sc_clean,
+                "speech": sc_dia
+            })
 
-            clean_visual = re.sub(r'Audio dialogue (?:track|script)[^:]*:.*$', '', full_scene_str, flags=re.IGNORECASE).strip()
-            clean_visual = re.sub(r'Voice assignment:.*$', '', clean_visual, flags=re.IGNORECASE).strip()
-            if not clean_visual.endswith('.'):
-                clean_visual += '.'
+        all_clean_prompts_text = "\n\n".join([cs["clean"] for cs in clean_scenes])
+
+        with st.expander("⚡ 📋 ចម្លង Prompt 2-in-1 ទាំងអស់ក្នុងពេលតែមួយ (Copy All Prompts at Once - 1 Click)", expanded=False):
+            st.markdown("<span style='color:#a7f3d0; font-size:13px;'>💡 បងអាចចុច Copy ទាំងអស់ក្នុងប្រអប់នេះ រួចយកទៅ Paste ចូល Google Flow ឬ Extension បានភ្លាមៗតែម្តង៖</span>", unsafe_allow_html=True)
+            st.text_area("All Clean Prompts:", value=all_clean_prompts_text, height=180, key="all_clean_prompts_area")
+
+        c_tl_hdr, c_tl_mode = st.columns([2, 1.2])
+        with c_tl_hdr:
+            st.markdown("#### 🎬 ពិនិត្យ & ចម្លងតាមឈុត (Fast Timeline & Prompts)")
+        with c_tl_mode:
+            fast_view = st.toggle("⚡ Fast Copy Mode (បង្ហាញ Prompt ផ្ទាល់ មិនបាច់ចុច Expand)", value=True, key="tog_fast_view")
+
+        for cs in clean_scenes:
+            s_idx = cs["idx"]
+            s_clean = cs["clean"]
+            s_full = cs["full"]
+            s_speech = cs["speech"]
             
-            with st.container():
-                st.markdown(f'<div class="scene-box"><span style="font-weight:700; color:#fb7185;">🎬 ឈុតទី {idx} (10 វិនាទី)</span> | <span style="font-size:12px; color:#22c55e;">🔒 Locked Continuity & Zero Speech Bubbles</span></div>', unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown(f'<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;"><span style="font-weight:700; color:#fb7185; font-size:15px;">🎬 ឈុតទី {s_idx} (10 វិនាទី)</span> <span style="background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3); font-size:11px; padding:2px 8px; border-radius:10px; font-weight:700;">🔒 IRONCLAD REFERENCE LOCKED</span></div>', unsafe_allow_html=True)
                 
-                c_left, c_right = st.columns([2, 1])
+                c_left, c_right = st.columns([2.2, 1])
                 with c_left:
-                    st.code(full_scene_str, language="text")
-                    with st.expander("🛡️ ចម្លង Prompt 2-in-1 សុទ្ធ (ប្រើបានទាំង Gen រូបភាព & Gen វីដេអូ គ្មាន Speech Bubble ១០០%):", expanded=False):
-                        st.code(clean_visual, language="text")
+                    if fast_view:
+                        st.markdown("<span style='font-size:12px; color:#a7f3d0; font-weight:600;'>🛡️ Prompt 2-in-1 សុទ្ធ (សម្រាប់ Gen រូបភាព & វីដេអូ គ្មាន Speech Bubble):</span>", unsafe_allow_html=True)
+                        st.code(s_clean, language="text")
+                        with st.expander("🔍 មើល Prompt ពេញលេញ (+ Audio Track):", expanded=False):
+                            st.code(s_full, language="text")
+                    else:
+                        st.code(s_full, language="text")
+                        with st.expander("🛡️ ចម្លង Prompt 2-in-1 សុទ្ធ (គ្មាន Speech Bubble):", expanded=False):
+                            st.code(s_clean, language="text")
                 with c_right:
-                    if khmer_speech:
-                        st.markdown(f"🗣️ **Script និយាយ (Audio Voiceover):** *\"{khmer_speech}\"*")
+                    if s_speech:
+                        st.markdown(f"🗣️ **Script និយាយ:**\n*\"{s_speech}\"*")
                         if enable_tts and HAS_GTTS:
-                            audio_bytes = get_khmer_audio_cached(khmer_speech)
+                            audio_bytes = get_khmer_audio_cached(s_speech)
                             if audio_bytes:
                                 st.audio(audio_bytes, format="audio/mp3")
 
