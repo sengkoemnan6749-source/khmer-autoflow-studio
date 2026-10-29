@@ -794,6 +794,7 @@ with tab_create:
         )
     with col3:
         workflow_type = st.selectbox("🛠️ ទម្រង់ Workflow:", [
+            "🎯 2-in-1 Universal (Text to Image + Image to Video 16:9)",
             "Text to Video (Full Story 10s - AutoFlow)",
             "Text to Image (Scene Keyframes / Storyboard 16:9)",
             "Character Sheet (8-Angle Turnaround Model Sheet)",
@@ -889,7 +890,37 @@ with tab_create:
                       * Scene 6: Scenic golden hour or sunset resolution.
                     """
 
-                    if "Text to Image" in workflow_type:
+                    if "2-in-1" in workflow_type:
+                        system_prompt = f"""
+                        You are an elite Hollywood Director and AI Cinematographer.
+                        Generate exactly {num_clips} sequential 16:9 cinematic 2-IN-1 UNIVERSAL DUAL-COMPATIBLE prompts for a complete {duration_min}-minute drama ({num_clips} scenes).
+                        
+                        PURPOSE OF 2-IN-1 PROMPTS:
+                        Each prompt is uniquely crafted to work seamlessly for BOTH:
+                        1. Generating the initial 16:9 photographic Keyframe image (Text-to-Image).
+                        2. Directly animating that exact Keyframe image into a 10-second cinematic video (Image-to-Video) using the SAME prompt!
+
+                        CRITICAL MASTER DIRECTIVES:
+                        1. DUAL COMPATIBILITY: Include rich static composition details (setting, lighting, framing) AND fluid micro-actions (natural slow breathing, expressive eyes, subtle head turn, gentle hand gestures, stable cinematic physics, slow camera push-in).
+                        2. DYNAMIC SCENE DIVERSITY: Every scene must have a different sub-location and camera angle within {location_dna}.
+                        3. STRICT CHARACTER & OUTFIT LOCK (ZERO CLOTHING DRIFT):
+{clothing_directives}
+                           - In EVERY single scene prompt, you MUST explicitly specify each character's outfit: {chars_prompt_lock}.
+                           - STRICT NEGATIVE CLOTHING: ABSOLUTELY NO HOODIES, NO NAVY JACKETS, NO BLACK T-SHIRTS, NO SWEATERS.
+
+                        4. ABSOLUTE ZERO SPEECH BUBBLES & ZERO ON-SCREEN TEXT (STRICT PHOTOREALISM):
+                           - This is a photorealistic live-action film frame, NOT a comic book.
+                           - ABSOLUTELY FORBIDDEN: ZERO speech bubbles, ZERO comic dialogue balloons, ZERO speech callouts, ZERO floating text, ZERO subtitles, ZERO typography rendered on image.
+                           - Clean frame, no text, no watermark.
+
+                        Format for each scene:
+                        #scene[N] A cinematic 16:9 4K scene. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe expressive action with cinema-grade micro-movements: natural breathing, subtle head turn, expressive blinking, natural gestures]. [Camera movement: subtle slow push-in / gentle pan]. [{ref_asset_lock_str}]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
+
+                        Rules:
+                        - Start with #scene1, #scene2... up to #scene{num_clips}.
+                        - Leave exactly ONE empty line between prompts.
+                        """
+                    elif "Text to Image" in workflow_type:
                         system_prompt = f"""
                         You are an elite Hollywood AI Cinematographer.
                         Generate exactly {num_clips} sequential 16:9 cinematic PHOTOGRAPHY KEYFRAME IMAGE prompts for a complete {duration_min}-minute drama ({num_clips} scenes).
@@ -996,6 +1027,15 @@ with tab_create:
         prompts_text = st.session_state['full_prompts']
         st.markdown("---")
         
+        if "2-in-1" in workflow_type:
+            st.markdown("""
+            <div style="background:linear-gradient(90deg, rgba(16,185,129,0.15) 0%, rgba(6,78,59,0.25) 100%); border:1px solid rgba(16,185,129,0.4); border-radius:12px; padding:12px 18px; margin-top:14px; margin-bottom:12px; font-size:13.5px; color:#a7f3d0;">
+                🎯 <b>របៀបប្រើ 2-in-1 Workflow:</b><br>
+                1. ចុចចម្លង <b>Prompt 2-in-1</b> ខាងក្រោម ➔ យកទៅ Gen រូបភាព 16:9 (Text-to-Image) ក្នុង Google Flow / Midjourney ឱ្យចេញរូបស្អាតសិន។<br>
+                2. ពេលបានរូបភាពហើយ ➔ យករូបនោះបញ្ចូលទៅ Image-to-Video រួច <b>Paste Prompt ដដែលនេះចូលម្តងទៀត</b> ដើម្បីបង្កើតវីដេអូចលនារលូន 10s ដោយមិនបាច់ប្តូរ Prompt ឡើយ!
+            </div>
+            """, unsafe_allow_html=True)
+
         # ACTION BAR
         st.markdown("### 📥 ទាញយកឯកសារសម្រាប់ផលិតវីដេអូ")
         c_dl1, c_dl2, c_dl3 = st.columns([1, 1, 1.2])
@@ -1124,7 +1164,7 @@ with tab_create:
                 c_left, c_right = st.columns([2, 1])
                 with c_left:
                     st.code(full_scene_str, language="text")
-                    with st.expander("🛡️ ចម្លង Prompt រូបភាពសុទ្ធ (គ្មាន Speech Bubble គ្មានអក្សរលើរូបភាព ១០០%):", expanded=False):
+                    with st.expander("🛡️ ចម្លង Prompt 2-in-1 សុទ្ធ (ប្រើបានទាំង Gen រូបភាព & Gen វីដេអូ គ្មាន Speech Bubble ១០០%):", expanded=False):
                         st.code(clean_visual, language="text")
                 with c_right:
                     if khmer_speech:
