@@ -310,6 +310,87 @@ tab_create, tab_doctor, tab_reroll, tab_srt = st.tabs([
     "📥 CapCut SRT"
 ])
 
+
+# ----------------- 🎯 INTELLIGENT STORY ATTRIBUTE DETECTOR -----------------
+def detect_story_attributes(story_text):
+    text_lower = story_text.lower()
+
+    # 1. Detect scenes count (e.g. 6, 12, 18)
+    scene_matches = re.findall(r"(?:ឈុតទី|#scene|scene)\s*(\d+)", story_text, re.IGNORECASE)
+    scene_nums = [int(m) for m in scene_matches] if scene_matches else []
+    max_scene = max(scene_nums) if scene_nums else len(scene_matches)
+
+    if max_scene >= 7:
+        dur_idx = 1 # 12 clips (2 min)
+        detected_scenes = 12
+    elif max_scene > 0:
+        dur_idx = 0 # 6 clips (1 min)
+        detected_scenes = 6
+    else:
+        dur_idx = 0
+        detected_scenes = 6
+
+    # 2. Detect character count (2, 3, 4, or 5)
+    num_chars = None
+    if re.search(r"(?:តួអង្គទាំង\s*[៥5]|ទាំង\s*[៥5]|ប្រាំនាក់|[៥5]\s*នាក់)", story_text):
+        num_chars = 5
+    elif re.search(r"(?:តួអង្គទាំង\s*[៤4]|ទាំង\s*[៤4]|បួននាក់|[៤4]\s*នាក់)", story_text):
+        num_chars = 4
+    elif re.search(r"(?:តួអង្គទាំង\s*[៣3]|ទាំង\s*[៣3]|បីនាក់|[៣3]\s*នាក់)", story_text):
+        num_chars = 3
+    elif re.search(r"(?:តួអង្គទាំង\s*(?:ពីរ|[២2])|ទាំង\s*(?:ពីរ|[២2])|ពីរនាក់|[២2]\s*នាក់)", story_text):
+        num_chars = 2
+
+    if num_chars is None:
+        known_names = ["សីម៉ា", "រ៉ិច", "អាណា", "លីសា", "តុលា", "សុផា", "បុប្ផា", "ដារ៉ា", "វីរៈ", "សុខា"]
+        found_names = [n for n in known_names if n in story_text]
+        if len(found_names) >= 2:
+            num_chars = min(5, max(2, len(found_names)))
+        else:
+            num_chars = 2 # default duo when 2 or fewer names
+
+    # 3. Detect location preset index
+    loc_idx = 0
+    if any(k in story_text for k in ["កញ្ចក់", "ឆ្លុះ", "បន្ទប់គេង", "mirror"]):
+        loc_idx = 0 # Bedroom & vanity mirror
+    elif any(k in story_text for k in ["តង់", "បោះតង់", "ព្រៃស្រល់", "campsite", "ព្រៃ"]):
+        loc_idx = 1 # Campsite
+    elif any(k in story_text for k in ["កំពត", "បូកគោ", "មាត់ព្រែក"]):
+        loc_idx = 2 # Kampot
+    elif any(k in story_text for k in ["ហ្គេម", "rank", "កុំព្យូទ័រ"]):
+        loc_idx = 3 # Gaming room
+    elif any(k in story_text for k in ["ផ្ទះឈើ", "បុរាណ", "ខ្មោច"]):
+        loc_idx = 4 # Wooden house
+    elif any(k in story_text for k in ["អង្គរ", "ប្រាសាទ"]):
+        loc_idx = 5 # Angkor
+    elif any(k in story_text for k in ["កាហ្វេ", "cafe", "ហាង"]):
+        loc_idx = 6 # Cafe
+    elif any(k in story_text for k in ["សមុទ្រ", "ឆ្នេរ", "beach"]):
+        loc_idx = 7 # Beach
+
+    # 4. Detect prop preset index
+    prop_idx = 0
+    if any(k in text_lower for k in ["bioaqua", "ម៉ាស់", "mask"]):
+        prop_idx = 5 # Bioaqua mask
+    elif any(k in story_text for k in ["ស្កូតឺ", "អាសង់", "scooter"]):
+        prop_idx = 1 # Scooter
+    elif any(k in text_lower for k in ["sport", "superbike", "ម៉ូតូធំ"]):
+        prop_idx = 2 # Superbike
+    elif any(k in story_text for k in ["កង់", "bicycle"]):
+        prop_idx = 3 # Bicycle
+    elif any(k in text_lower for k in ["ឡាន", "suv"]):
+        prop_idx = 4 # SUV
+    elif any(k in story_text for k in ["តង់", "ពិល"]):
+        prop_idx = 0 # Tent & flashlight
+
+    return {
+        "num_chars": num_chars,
+        "detected_scenes": detected_scenes,
+        "dur_idx": dur_idx,
+        "loc_idx": loc_idx,
+        "prop_idx": prop_idx
+    }
+
 # ================= TAB 1: STORY CREATOR =================
 with tab_create:
     st.markdown("### ✍️ ជំហានទី ១៖ ជ្រើសរើសប្រធានបទរឿង (Quick Presets)")
@@ -331,6 +412,33 @@ with tab_create:
 
     default_story = preset_choice if preset_choice else "តួអង្គទាំងពីរបោះតង់ក្នុងព្រៃពេលយប់..."
     story_input = st.text_area("សរសេរគំនិតសាច់រឿងរបស់អ្នក (ឬចុចប៊ូតុងខាងលើ):", value=default_story, height=80)
+
+    # ----------------- 🎯 SMART STORY AUTO-SYNC -----------------
+    detected = detect_story_attributes(story_input)
+    last_story = st.session_state.get('last_analyzed_story_text', None)
+    if last_story != story_input:
+        st.session_state['last_analyzed_story_text'] = story_input
+        st.session_state['num_characters_val'] = detected['num_chars']
+        st.session_state['detected_dur_idx'] = detected['dur_idx']
+        st.session_state['detected_loc_idx'] = detected['loc_idx']
+        st.session_state['detected_prop_idx'] = detected['prop_idx']
+        if st.session_state.get('prev_rendered_num_c', None) != detected['num_chars']:
+            st.session_state['prev_rendered_num_c'] = detected['num_chars']
+            st.rerun()
+
+    st.session_state['prev_rendered_num_c'] = detected['num_chars']
+
+    dur_disp = "1 នាទី (6 ឈុត)" if detected['dur_idx'] == 0 else ("2 នាទី (12 ឈុត)" if detected['dur_idx'] == 1 else f"{detected['detected_scenes']} ឈុត")
+    st.markdown(f"""
+    <div style="background:linear-gradient(90deg, rgba(225,29,72,0.18) 0%, rgba(20,5,12,0.4) 100%); border:1px solid rgba(225,29,72,0.35); border-radius:12px; padding:9px 16px; margin-top:6px; margin-bottom:12px; font-size:13px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span style="color:#fecdd3; display:flex; align-items:center; gap:8px;">
+            🎯 <b>Smart Story Detection:</b> រកឃើញ <b>{detected['num_chars']} តួអង្គ</b> | <b>{dur_disp}</b>
+        </span>
+        <span style="background:#22c55e; color:#fff; font-size:11px; padding:2px 10px; border-radius:12px; font-weight:700; box-shadow:0 0 8px rgba(34,197,94,0.4);">
+            ✅ AUTO-APPLIED SETTINGS
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ----------------- ⚙️ CONFIG & PROFILE MANAGER (SAVE & LOAD) -----------------
     with st.expander("💾 រក្សាទុក & គ្រប់គ្រងការកំណត់ Preset Profiles (Save & Load Config)", expanded=False):
@@ -402,9 +510,9 @@ with tab_create:
     with col_hdr:
         st.markdown("#### 👥 កំណត់ក្រុមតួអង្គ ឈ្មោះ ភេទ និងសំឡេង (Character Squad Studio)")
     with col_num_c:
-        current_num_c = st.session_state.get("num_characters_val", 4)
+        current_num_c = st.session_state.get("num_characters_val", detected["num_chars"])
         c_opts = [2, 3, 4, 5]
-        def_c_idx = c_opts.index(current_num_c) if current_num_c in c_opts else 2
+        def_c_idx = c_opts.index(current_num_c) if current_num_c in c_opts else 0
         num_characters = st.selectbox("👥 ចំនួនតួអង្គក្នុងរឿង (Squad Size):", c_opts, index=def_c_idx, format_func=lambda x: f"{x} តួអង្គ ({x} Characters)", key="num_c_select")
         st.session_state["num_characters_val"] = num_characters
 
@@ -544,10 +652,10 @@ with tab_create:
 
     c_env1, c_env2 = st.columns(2)
     with c_env1:
-        loc_choice = st.selectbox("🏠 ជ្រើសរើសទីតាំង/ផ្ទះ/បន្ទប់:", list(LOCATION_MAP.keys()), index=default_loc_idx)
+        loc_choice = st.selectbox("🏠 ជ្រើសរើសទីតាំង/ផ្ទះ/បន្ទប់:", list(LOCATION_MAP.keys()), index=st.session_state.get("detected_loc_idx", detected["loc_idx"]))
         location_dna = LOCATION_MAP[loc_choice] if LOCATION_MAP[loc_choice] != "CUSTOM" else st.text_input("វាយទីតាំង:", value="pine forest campsite at night")
     with c_env2:
-        prop_choice = st.selectbox("🏍️ ជ្រើសរើសយានយន្ត ឬរបស់របរ:", list(PROP_MAP.keys()), index=default_prop_idx)
+        prop_choice = st.selectbox("🏍️ ជ្រើសរើសយានយន្ត ឬរបស់របរ:", list(PROP_MAP.keys()), index=st.session_state.get("detected_prop_idx", detected["prop_idx"]))
         prop_dna = PROP_MAP[prop_choice] if PROP_MAP[prop_choice] != "CUSTOM" else st.text_input("វាយរបស់របរ:", value="camping tent")
 
     # PRO SETTINGS (ROW 1)
@@ -559,7 +667,7 @@ with tab_create:
             "Kling AI / PixVerse (Cinematic Physics)"
         ])
     with col2:
-        duration_min = st.selectbox("⏱️ ប្រវែងវីដេអូ:", [1, 2, 3, 5], index=default_dur_idx, format_func=lambda x: f"{x} នាទី ({x*6} ឈុត)")
+        duration_min = st.selectbox("⏱️ ប្រវែងវីដេអូ:", [1, 2, 3, 5], index=st.session_state.get("detected_dur_idx", detected["dur_idx"]), format_func=lambda x: f"{x} នាទី ({x*6} ឈុត)")
     with col3:
         workflow_type = st.selectbox("🛠️ ទម្រង់ Workflow:", [
             "Text to Video (Full Story 10s - AutoFlow)",
