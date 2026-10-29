@@ -2,6 +2,8 @@ import streamlit as st
 import io
 import re
 import zipfile
+import json
+import os
 from google import genai
 
 # Check for gTTS (Khmer Audio Engine)
@@ -22,6 +24,50 @@ def get_khmer_audio_cached(text: str) -> bytes:
         return fp.getvalue()
     except Exception:
         return b""
+
+
+# ----------------- 💾 CONFIG PROFILE PERSISTENCE HELPERS -----------------
+CONFIG_FILE = "saved_configs.json"
+
+def get_default_configs():
+    return {
+        "🌟 Default Duo (Sima & Rex)": {
+            "num_characters": 2,
+            "characters": [
+                {"tag": "@sima", "gender": "👩 មនុស្សស្រី (Female)", "dna": "young Southeast Asian woman, neat high hair bun, white crop top", "voice": "Aoede (ស្រីស្រទន់)"},
+                {"tag": "@rex", "gender": "👩 មនុស្សស្រី (Female)", "dna": "young beautiful woman, long straight natural black hair, center-parted, light blue buttoned collared dress shirt", "voice": "Kore (ស្រីរស់រវើក)"}
+            ]
+        },
+        "✨ 4 Characters Squad (Bioaqua Teasing)": {
+            "num_characters": 4,
+            "characters": [
+                {"tag": "@sima", "gender": "👩 មនុស្សស្រី (Female)", "dna": "young Southeast Asian woman, neat high hair bun, white crop top", "voice": "Aoede (ស្រីស្រទន់)"},
+                {"tag": "@rex", "gender": "👩 មនុស្សស្រី (Female)", "dna": "young beautiful woman, long straight natural black hair, center-parted, light blue buttoned collared dress shirt", "voice": "Kore (ស្រីរស់រវើក)"},
+                {"tag": "@bopha", "gender": "👩 មនុស្សស្រី (Female)", "dna": "cheerful young Cambodian woman with twin braids, wearing a pastel yellow t-shirt and light blue jeans", "voice": "Leda (ស្រីចាស់ទុំ)"},
+                {"tag": "@dara", "gender": "👨 មនុស្សប្រុស (Male)", "dna": "handsome young Cambodian man with trendy short wavy black hair, wearing an open denim jacket over a white tee", "voice": "Alnilam (ប្រុសស្វាហាប់)"}
+            ]
+        }
+    }
+
+def load_saved_configs():
+    configs = get_default_configs()
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                configs.update(saved)
+        except Exception:
+            pass
+    return configs
+
+def save_config_profile(name, data):
+    configs = load_saved_configs()
+    configs[name] = data
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(configs, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 # ----------------- PAGE CONFIG -----------------
 st.set_page_config(
@@ -288,12 +334,81 @@ with tab_create:
     default_story = preset_choice if preset_choice else "តួអង្គទាំងពីរបោះតង់ក្នុងព្រៃពេលយប់..."
     story_input = st.text_area("សរសេរគំនិតសាច់រឿងរបស់អ្នក (ឬចុចប៊ូតុងខាងលើ):", value=default_story, height=80)
 
+    # ----------------- ⚙️ CONFIG & PROFILE MANAGER (SAVE & LOAD) -----------------
+    with st.expander("💾 រក្សាទុក & គ្រប់គ្រងការកំណត់ Preset Profiles (Save & Load Config)", expanded=False):
+        all_configs = load_saved_configs()
+        c_cfg_load, c_cfg_save = st.columns(2)
+        with c_cfg_load:
+            st.markdown("##### ⚡ ទាញយកការកំណត់មកប្រើ (Load Profile)")
+            selected_prof_name = st.selectbox("ជ្រើសរើស Profile ដែលបានរក្សាទុក:", list(all_configs.keys()), key="sel_prof_name")
+            c_btn_l1, c_btn_l2 = st.columns([1, 1.2])
+            with c_btn_l1:
+                if st.button("⚡ Apply Profile", key="btn_apply_prof"):
+                    target_p = all_configs[selected_prof_name]
+                    target_chars = target_p.get("characters", [])
+                    st.session_state["num_characters_val"] = target_p.get("num_characters", len(target_chars))
+                    for ci, tc in enumerate(target_chars):
+                        st.session_state[f"sq_tag_{ci}"] = tc.get("tag", f"@char{ci+1}")
+                        st.session_state[f"sq_gen_{ci}"] = tc.get("gender", "👩 មនុស្សស្រី (Female)")
+                        st.session_state[f"sq_dna_{ci}"] = tc.get("dna", "")
+                        st.session_state[f"sq_voc_{ci}"] = tc.get("voice", "Aoede").split(" ")[0]
+                    st.success(f"✅ បានទាញយក Profile '{selected_prof_name}' រួចរាល់!")
+                    st.rerun()
+            with c_btn_l2:
+                uploaded_cfg = st.file_uploader("📤 Import .json:", type=["json"], key="up_cfg", label_visibility="collapsed")
+                if uploaded_cfg is not None:
+                    try:
+                        imported_data = json.loads(uploaded_cfg.read().decode("utf-8"))
+                        for k, v in imported_data.items():
+                            save_config_profile(k, v)
+                        st.success("✅ បាន Import ជោគជ័យ!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+        with c_cfg_save:
+            st.markdown("##### 💾 រក្សាទុកការកំណត់បច្ចុប្បន្ន (Save Profile)")
+            new_p_name = st.text_input("ឈ្មោះ Profile ថ្មី (ឧ. My 4 Girls Drama):", key="new_prof_input", placeholder="វាយឈ្មោះ Profile...")
+            c_btn_s1, c_btn_s2 = st.columns([1, 1.2])
+            with c_btn_s1:
+                if st.button("💾 Save Profile", key="btn_save_prof"):
+                    if new_p_name.strip():
+                        curr_num_c = st.session_state.get("num_characters_val", 4)
+                        saved_chars = []
+                        for ci in range(curr_num_c):
+                            saved_chars.append({
+                                "tag": st.session_state.get(f"sq_tag_{ci}", DEFAULT_CHARS[ci]["tag"] if ci < len(DEFAULT_CHARS) else f"@char{ci+1}"),
+                                "gender": st.session_state.get(f"sq_gen_{ci}", DEFAULT_CHARS[ci]["gender"] if ci < len(DEFAULT_CHARS) else "👩 មនុស្សស្រី (Female)"),
+                                "dna": st.session_state.get(f"sq_dna_{ci}", DEFAULT_CHARS[ci]["dna"] if ci < len(DEFAULT_CHARS) else ""),
+                                "voice": st.session_state.get(f"sq_voc_{ci}", DEFAULT_CHARS[ci]["voice"] if ci < len(DEFAULT_CHARS) else "Aoede")
+                            })
+                        save_config_profile(new_p_name.strip(), {
+                            "num_characters": curr_num_c,
+                            "characters": saved_chars
+                        })
+                        st.success(f"✅ បានរក្សាទុក '{new_p_name.strip()}' ជោគជ័យ!")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ សូមវាយឈ្មោះ Profile ជាមុនសិន!")
+            with c_btn_s2:
+                st.download_button(
+                    label="📥 Export Configs (.json)",
+                    data=json.dumps(all_configs, ensure_ascii=False, indent=2),
+                    file_name="autoflow_saved_configs.json",
+                    mime="application/json",
+                    key="dl_configs"
+                )
+
     # ----------------- 👥 CUSTOM CHARACTER & GENDER SETUP (UP TO 4+ CHARACTERS) -----------------
     col_hdr, col_num_c = st.columns([2, 1])
     with col_hdr:
         st.markdown("#### 👥 កំណត់ក្រុមតួអង្គ ឈ្មោះ ភេទ និងសំឡេង (Character Squad Studio)")
     with col_num_c:
-        num_characters = st.selectbox("👥 ចំនួនតួអង្គក្នុងរឿង (Squad Size):", [2, 3, 4, 5], index=2, format_func=lambda x: f"{x} តួអង្គ ({x} Characters)")
+        current_num_c = st.session_state.get("num_characters_val", 4)
+        c_opts = [2, 3, 4, 5]
+        def_c_idx = c_opts.index(current_num_c) if current_num_c in c_opts else 2
+        num_characters = st.selectbox("👥 ចំនួនតួអង្គក្នុងរឿង (Squad Size):", c_opts, index=def_c_idx, format_func=lambda x: f"{x} តួអង្គ ({x} Characters)", key="num_c_select")
+        st.session_state["num_characters_val"] = num_characters
 
     DEFAULT_CHARS = [
         {"tag": "@sima", "gender": "👩 មនុស្សស្រី (Female)", "dna": "young Southeast Asian woman, neat high hair bun, white crop top", "voice": "Aoede (ស្រីស្រទន់)"},
