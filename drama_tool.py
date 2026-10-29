@@ -823,6 +823,10 @@ with tab_create:
         f"{c['tag']} ({c['gender_desc']}, wearing {c['dna']}, strictly NO hoodie, NO dark jacket)"
         for c in chars_data
     ])
+    ref_asset_lock_str = " | ".join([
+        f"Reference Asset Lock {c['tag']}: 100% visual match to uploaded {c['tag']} reference image, identical facial likeness and strictly wearing {c['dna']} with zero outfit change, strictly no hoodie, no dark jacket, no black t-shirt"
+        for c in chars_data
+    ])
     tags_str = ", ".join([c["tag"] for c in chars_data])
     squad_summary = "\n".join([f"- {c['tag']}: {c['gender_desc']}, {c['dna']}. Assigned voice: {c['voice']}." for c in chars_data])
     voice_rules = "; ".join([f"{c['tag']} uses {c['voice']}" for c in chars_data])
@@ -904,7 +908,7 @@ with tab_create:
                            - Clean frame, no text, no watermark.
 
                         Format for each scene:
-                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic physical action, natural body posture, and vivid facial expressions matching the story beat]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean live-action photo, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
+                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic physical action, natural body posture, and vivid facial expressions matching the story beat]. [{ref_asset_lock_str}]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean live-action photo, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -933,7 +937,7 @@ with tab_create:
                         {motion_rules}
                         
                         Format for each scene:
-                        #scene[N] Animate directly from the reference keyframe into a single continuous 10-second cinematic clip in 16:9 widescreen, 4K HDR. Beginning from the exact static keyframe pose, {c1_tag} ({c1_gender_desc}) and {c2_tag} ({c2_gender_desc}) [describe physical micro-actions picking up smoothly from the image]. Strictly preserve exact facial likeness, clothing, and environment from input keyframe with zero drift. {art_prompt}. Voice assignment: {c1_tag} uses voice {c1_voice}; {c2_tag} uses voice {c2_voice}. Dialogue line (spoken audio only, never render text): [Speaker] says, "[Natural funny dialogue in Khmer language]" Clean frame, no subtitles, no text on screen, no watermark.
+                        #scene[N] Animate directly from the reference keyframe into a single continuous 10-second cinematic clip in 16:9 widescreen, 4K HDR. Beginning from the exact static keyframe pose, {chars_prompt_lock} [describe physical micro-actions picking up smoothly from the image]. [{ref_asset_lock_str}]. Strictly preserve exact facial likeness, clothing, and environment from input keyframe with zero drift. {art_prompt}. Voice assignment: {c1_tag} uses voice {c1_voice}; {c2_tag} uses voice {c2_voice}. Dialogue line (spoken audio only, never render text): [Speaker] says, "[Natural funny dialogue in Khmer language]" Clean frame, no subtitles, no text on screen, no watermark.
                         
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -968,7 +972,7 @@ with tab_create:
                            - All characters have identical facial likeness to character reference sheet with zero drift. Distinct individuals.
 
                         Format for each prompt:
-                        #scene[N] A cinematic 10-second 4K clip in 16:9 widescreen. Setting: [specific distinct sub-location in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic squad action, natural micro-movements, and expressions matching the user's story beat]. [Camera movement]. Photorealistic live-action, natural lighting. Identical facial features and exact clothing matching character reference image with zero outfit change, strictly no hoodies, no dark jackets, zero clothing drift. Clean cinematic live-action frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, zero on-screen typography, no watermark. Voice assignment: {voice_rules}. Audio dialogue track only (spoken audio only, strictly forbidden to render visual speech bubbles): [Speaker] says, "[Short natural funny dialogue in Khmer language matching the story]"
+                        #scene[N] A cinematic 10-second 4K clip in 16:9 widescreen. Setting: [specific distinct sub-location in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic squad action, natural micro-movements, and expressions matching the user's story beat]. [{ref_asset_lock_str}]. [Camera movement]. Photorealistic live-action, natural lighting. Identical facial features and exact clothing matching character reference image with zero outfit change, strictly no hoodies, no dark jackets, zero clothing drift. Clean cinematic live-action frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, zero on-screen typography, no watermark. Voice assignment: {voice_rules}. Audio dialogue track only (spoken audio only, strictly forbidden to render visual speech bubbles): [Speaker] says, "[Short natural funny dialogue in Khmer language matching the story]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
