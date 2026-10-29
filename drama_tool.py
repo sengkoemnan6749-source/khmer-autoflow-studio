@@ -371,6 +371,35 @@ tab_create, tab_doctor, tab_reroll, tab_srt = st.tabs([
 ])
 
 
+# ----------------- 🗣️ ROBUST DIALOGUE / SCRIPT EXTRACTOR -----------------
+def extract_dialogue(scene_content, story_input, scene_idx):
+    if not scene_content:
+        scene_content = ""
+    # 1. Match standard speech patterns: says, dialogue, voiceover
+    m1 = re.search(r'(?:says|dialogue|voiceover|audio|track)[^"«“]*["“«]([^"”»]+)["”»]', scene_content, re.IGNORECASE)
+    if m1 and any('ក' <= c <= '៿' for c in m1.group(1)):
+        return m1.group(1).strip()
+
+    # 2. Match any Khmer text in quotes inside the scene prompt
+    m2 = re.search(r'["“«]([ក-៿\s\d\.,!?៖\(\)]+)["”»]', scene_content)
+    if m2 and len(m2.group(1).strip()) > 3:
+        return m2.group(1).strip()
+
+    # 3. Fallback: Extract directly from the user pasted story for scene_idx
+    if story_input:
+        chunks = re.split(r'ឈុតទី\s*\d+[\s៖:]*', story_input)
+        scene_chunks = [c.strip() for c in chunks if c.strip()]
+        if scene_chunks and scene_idx <= len(scene_chunks):
+            chunk = scene_chunks[scene_idx - 1]
+            q_m = re.search(r'["“«]([^"”»]+)["”»]', chunk)
+            if q_m:
+                return q_m.group(1).strip()
+            lines = [l.strip() for l in chunk.splitlines() if l.strip()]
+            if lines:
+                return lines[0][:120]
+
+    return None
+
 # ----------------- 🎯 INTELLIGENT STORY ATTRIBUTE DETECTOR -----------------
 def detect_story_attributes(story_text):
     text_lower = story_text.lower()
@@ -826,7 +855,7 @@ with tab_create:
                         4. CLEAN FRAME: Single standalone image, zero split screen, zero duplicate panels, zero text, zero subtitles, no watermark.
 
                         Format for each scene:
-                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Characters: {c1_tag} ({c1_gender_desc}) and {c2_tag} ({c2_gender_desc}) [describe distinct physical action and expressive face]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, cinematic lighting, identical facial likeness to character reference sheet with zero drift, clean frame, no text, no watermark.
+                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {tags_str} [describe dynamic physical action and expressive faces matching the story]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, cinematic lighting, identical facial likeness to character reference sheet with zero drift, clean frame, no text, no watermark. Audio dialogue track: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -927,9 +956,9 @@ with tab_create:
         scenes = [s.strip() for s in prompts_text.split("#scene") if s.strip()]
         khmer_dialogues = []
         for idx, sc in enumerate(scenes, start=1):
-            dm = re.search(r'says,\s*"([^"]+)"', sc)
-            if dm:
-                khmer_dialogues.append((idx, dm.group(1)))
+            dia_line = extract_dialogue(sc, story_input, idx)
+            if dia_line:
+                khmer_dialogues.append((idx, dia_line))
 
         with c_dl2:
             if enable_tts and HAS_GTTS and khmer_dialogues:
@@ -1026,8 +1055,7 @@ with tab_create:
         st.markdown("#### 🎬 ពិនិត្យមើលតាមឈុតនីមួយៗ (Timeline & Prompts)")
         for idx, scene_content in enumerate(scenes, start=1):
             full_scene_str = f"#scene{scene_content}"
-            dialogue_match = re.search(r'says,\s*"([^"]+)"', scene_content)
-            khmer_speech = dialogue_match.group(1) if dialogue_match else None
+            khmer_speech = extract_dialogue(scene_content, story_input, idx)
             
             with st.container():
                 st.markdown(f'<div class="scene-box"><span style="font-weight:700; color:#fb7185;">🎬 ឈុតទី {idx} (10 វិនាទី)</span> | <span style="font-size:12px; color:#22c55e;">🔒 Custom Locked Continuity</span></div>', unsafe_allow_html=True)
@@ -1136,8 +1164,7 @@ with tab_srt:
                 m = (seconds % 3600) // 60
                 s = seconds % 60
                 return f"{h:02d}:{m:02d}:{s:02d},000"
-            dm = re.search(r'says,\s*"([^"]+)"', sc)
-            kh_text = dm.group(1) if dm else f"ឈុតទី {i}"
+            kh_text = extract_dialogue(sc, story_input, i) or f"ឈុតទី {i}"
             srt_content += f"{i}\n{fmt_time(start_sec)} --> {fmt_time(end_sec)}\n{kh_text}\n\n"
             
         st.text_area("Preview Subtitle (.srt):", value=srt_content, height=200)
