@@ -27,6 +27,39 @@ def get_khmer_audio_cached(text: str) -> bytes:
 
 
 # ----------------- 💾 CONFIG PROFILE PERSISTENCE HELPERS -----------------
+
+API_KEY_FILE = ".api_key.txt"
+
+def get_saved_api_key():
+    try:
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
+    except Exception:
+        pass
+    if os.path.exists(API_KEY_FILE):
+        try:
+            with open(API_KEY_FILE, "r", encoding="utf-8") as f:
+                k = f.read().strip()
+                if k:
+                    return k
+        except Exception:
+            pass
+    return os.environ.get("GEMINI_API_KEY", "")
+
+def save_api_key(key_str):
+    if key_str and len(key_str.strip()) > 5:
+        try:
+            with open(API_KEY_FILE, "w", encoding="utf-8") as f:
+                f.write(key_str.strip())
+        except Exception:
+            pass
+    elif key_str == "":
+        try:
+            if os.path.exists(API_KEY_FILE):
+                os.remove(API_KEY_FILE)
+        except Exception:
+            pass
+
 CONFIG_FILE = "saved_configs.json"
 
 def get_default_configs():
@@ -296,9 +329,36 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-col_api_dummy, col_api = st.columns([2, 1])
+# Load & persist Gemini API Key
+saved_key_init = get_saved_api_key()
+if "user_api_key" not in st.session_state:
+    st.session_state["user_api_key"] = saved_key_init
+
+col_api_dummy, col_api = st.columns([1.5, 1.5])
+with col_api_dummy:
+    if st.session_state.get("user_api_key"):
+        st.markdown("""
+        <div style="display:flex; align-items:center; gap:8px; font-size:12.5px; color:#22c55e; padding-top:7px; font-weight:600;">
+            <span style="display:inline-block; width:8px; height:8px; background:#22c55e; border-radius:50%; box-shadow:0 0 8px #22c55e;"></span>
+            <span>🔒 Gemini API Key Saved (Auto-restores on Refresh)</span>
+        </div>
+        """, unsafe_allow_html=True)
+
 with col_api:
-    api_key = st.text_input("🔑 Gemini API Key:", type="password", placeholder="Paste Gemini API Key...", label_visibility="collapsed")
+    api_key_input = st.text_input(
+        "🔑 Gemini API Key:", 
+        value=st.session_state.get("user_api_key", ""), 
+        type="password", 
+        placeholder="Paste Gemini API Key (Auto-saved)...", 
+        label_visibility="collapsed",
+        key="input_gemini_api_key"
+    )
+    if api_key_input != st.session_state.get("user_api_key", ""):
+        st.session_state["user_api_key"] = api_key_input
+        save_api_key(api_key_input)
+        st.rerun()
+
+api_key = st.session_state.get("user_api_key", "")
 
 st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
