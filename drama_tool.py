@@ -403,19 +403,46 @@ def extract_dialogue(scene_content, story_input, scene_idx):
 # ----------------- 🎯 INTELLIGENT STORY ATTRIBUTE DETECTOR -----------------
 def detect_story_attributes(story_text):
     text_lower = story_text.lower()
+    km_digits = {'០':'0', '១':'1', '២':'2', '៣':'3', '៤':'4', '៥':'5', '៦':'6', '៧':'7', '៨':'8', '៩':'9'}
 
-    # 1. Detect scenes count (e.g. 6, 12, 18)
-    scene_matches = re.findall(r"(?:ឈុតទី|#scene|scene)\s*(\d+)", story_text, re.IGNORECASE)
-    scene_nums = [int(m) for m in scene_matches] if scene_matches else []
-    max_scene = max(scene_nums) if scene_nums else len(scene_matches)
+    # 1. Detect scenes count (support 6, 12, 18 scenes / 1, 2, 3 min)
+    is_18_scenes = bool(re.search(r"(?:18|១៨)\s*(?:ឈុត|scene|scenes|sence|sences|clip|clips|វគ្គ)", story_text, re.IGNORECASE))
+    is_3_min = bool(re.search(r"(?:3|៣)\s*(?:នាទី|min|minute|minutes)", story_text, re.IGNORECASE))
+    is_12_scenes = bool(re.search(r"(?:12|១២)\s*(?:ឈុត|scene|scenes|sence|sences|clip|clips|វគ្គ)", story_text, re.IGNORECASE))
+    is_2_min = bool(re.search(r"(?:2|២)\s*(?:នាទី|min|minute|minutes)", story_text, re.IGNORECASE))
 
-    if max_scene >= 7:
-        dur_idx = 1 # 12 clips (2 min)
+    # Match all scene markers: ឈុតទី 1-18, ឈុត 1-18, ឈុត1-18, ឈុតទី១-១៨, ឈុត១-១៨, scene 1-18, sence 1-18, #scene 1-18
+    pattern = r"(?:ឈុតទី|ឈុត|#scene|scene|sence|clip)\s*([0-9\u17e0-\u17e9]+)"
+    raw_matches = re.findall(pattern, story_text, re.IGNORECASE)
+
+    scene_nums = []
+    for rm in raw_matches:
+        norm = "".join(km_digits.get(ch, ch) for ch in rm)
+        try:
+            val = int(norm)
+            if 1 <= val <= 100:
+                scene_nums.append(val)
+        except ValueError:
+            pass
+
+    max_scene = max(scene_nums) if scene_nums else 0
+    unique_scenes_count = len(set(scene_nums)) if scene_nums else 0
+    fallback_scene_count = len(re.findall(r"(?:ឈុតទី|ឈុត|#scene|scene|sence)", story_text, re.IGNORECASE))
+
+    if is_3_min or is_18_scenes or max_scene >= 13 or unique_scenes_count >= 13 or fallback_scene_count >= 13:
+        dur_val = 3      # 3 minutes = 18 clips
+        dur_idx = 2
+        detected_scenes = 18
+    elif is_12_scenes or is_2_min or max_scene >= 7 or unique_scenes_count >= 7 or fallback_scene_count >= 7:
+        dur_val = 2      # 2 minutes = 12 clips
+        dur_idx = 1
         detected_scenes = 12
-    elif max_scene > 0:
-        dur_idx = 0 # 6 clips (1 min)
+    elif max_scene >= 1 or unique_scenes_count >= 1 or fallback_scene_count >= 1:
+        dur_val = 1      # 1 minute = 6 clips
+        dur_idx = 0
         detected_scenes = 6
     else:
+        dur_val = 1
         dur_idx = 0
         detected_scenes = 6
 
@@ -475,6 +502,7 @@ def detect_story_attributes(story_text):
     return {
         "num_chars": num_chars,
         "detected_scenes": detected_scenes,
+        "dur_val": dur_val,
         "dur_idx": dur_idx,
         "loc_idx": loc_idx,
         "prop_idx": prop_idx
@@ -507,17 +535,16 @@ with tab_create:
     last_story = st.session_state.get('last_analyzed_story_text', None)
     if last_story != story_input:
         st.session_state['last_analyzed_story_text'] = story_input
+        st.session_state['sel_duration_min'] = detected['dur_val']
+        st.session_state['num_c_select'] = detected['num_chars']
         st.session_state['num_characters_val'] = detected['num_chars']
         st.session_state['detected_dur_idx'] = detected['dur_idx']
+        st.session_state['detected_dur_val'] = detected['dur_val']
         st.session_state['detected_loc_idx'] = detected['loc_idx']
         st.session_state['detected_prop_idx'] = detected['prop_idx']
-        if st.session_state.get('prev_rendered_num_c', None) != detected['num_chars']:
-            st.session_state['prev_rendered_num_c'] = detected['num_chars']
-            st.rerun()
+        st.rerun()
 
-    st.session_state['prev_rendered_num_c'] = detected['num_chars']
-
-    dur_disp = "1 នាទី (6 ឈុត)" if detected['dur_idx'] == 0 else ("2 នាទី (12 ឈុត)" if detected['dur_idx'] == 1 else f"{detected['detected_scenes']} ឈុត")
+    dur_disp = f"{detected['dur_val']} នាទី ({detected['detected_scenes']} ឈុត)" 
     st.markdown(f"""
     <div style="background:linear-gradient(90deg, rgba(225,29,72,0.18) 0%, rgba(20,5,12,0.4) 100%); border:1px solid rgba(225,29,72,0.35); border-radius:12px; padding:9px 16px; margin-top:6px; margin-bottom:12px; font-size:13px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
         <span style="color:#fecdd3; display:flex; align-items:center; gap:8px;">
@@ -756,7 +783,15 @@ with tab_create:
             "Kling AI / PixVerse (Cinematic Physics)"
         ])
     with col2:
-        duration_min = st.selectbox("⏱️ ប្រវែងវីដេអូ:", [1, 2, 3, 5], index=st.session_state.get("detected_dur_idx", detected["dur_idx"]), format_func=lambda x: f"{x} នាទី ({x*6} ឈុត)")
+        dur_options = [1, 2, 3, 5]
+        if "sel_duration_min" not in st.session_state or st.session_state["sel_duration_min"] not in dur_options:
+            st.session_state["sel_duration_min"] = detected["dur_val"]
+        duration_min = st.selectbox(
+            "⏱️ ប្រវែងវីដេអូ:", 
+            dur_options, 
+            format_func=lambda x: f"{x} នាទី ({x*6} ឈុត)",
+            key="sel_duration_min"
+        )
     with col3:
         workflow_type = st.selectbox("🛠️ ទម្រង់ Workflow:", [
             "Text to Video (Full Story 10s - AutoFlow)",
@@ -780,7 +815,14 @@ with tab_create:
         enable_tts = st.checkbox("🔊 បង្កើតសំឡេងខ្មែរ (Audio Preview)", value=False, help="បើកមុខងារនេះទើបវាទាញយកសំឡេង MP3។ បើបិទ វានឹងដំណើរការលឿនខ្លាំង!")
     num_clips = duration_min * 6
 
-    clothing_directives = "\n".join([f"- {c['tag']}: 100% IDENTICAL to reference image ({c['dna']}). Must wear the EXACT same outfit from the reference image in all scenes with zero outfit modification, zero added jackets, zero sweaters, zero clothing drift." for c in chars_data])
+    clothing_directives = "\n".join([
+        f"- {c['tag']}: {c['gender_desc']}. MANDATORY OUTFIT LOCK: strictly wearing {c['dna']}. ABSOLUTELY FORBIDDEN: NO dark hoodies, NO navy jackets, NO black t-shirts, NO unrequested sweaters, NO denim jackets. In EVERY single scene, {c['tag']} MUST wear this exact outfit with zero clothing drift."
+        for c in chars_data
+    ])
+    chars_prompt_lock = " and ".join([
+        f"{c['tag']} ({c['gender_desc']}, wearing {c['dna']}, strictly NO hoodie, NO dark jacket)"
+        for c in chars_data
+    ])
     tags_str = ", ".join([c["tag"] for c in chars_data])
     squad_summary = "\n".join([f"- {c['tag']}: {c['gender_desc']}, {c['dna']}. Assigned voice: {c['voice']}." for c in chars_data])
     voice_rules = "; ".join([f"{c['tag']} uses {c['voice']}" for c in chars_data])
@@ -846,16 +888,23 @@ with tab_create:
                     if "Text to Image" in workflow_type:
                         system_prompt = f"""
                         You are an elite Hollywood AI Cinematographer.
-                        Generate exactly {num_clips} sequential 16:9 cinematic PHOTOGRAPHY KEYFRAME IMAGE prompts for a complete {duration_min}-minute drama.
+                        Generate exactly {num_clips} sequential 16:9 cinematic PHOTOGRAPHY KEYFRAME IMAGE prompts for a complete {duration_min}-minute drama ({num_clips} scenes).
 
-                        CORE DIRECTIVES:
-                        1. PUNCHY AND FOCUSED: Under 65 words per prompt.
-                        2. DYNAMIC SCENE DIVERSITY: Every scene must have a different sub-location and camera angle (Scene 1: arrival on road, Scene 2: walking through market, Scene 3: close-up reaction, Scene 4: scenic riverside sunset, Scene 5: comedy mishap, Scene 6: night dinner). Do NOT repeat the vehicle in every shot.
-                        3. STRICT CHARACTER LOCK: {c1_tag} ({c1_gender_desc}, {c1_dna}) and {c2_tag} ({c2_gender_desc}, {c2_dna}). {art_prompt}.
-                        4. CLEAN FRAME: Single standalone image, zero split screen, zero duplicate panels, zero text, zero subtitles, no watermark.
+                        CRITICAL MASTER DIRECTIVES:
+                        1. PUNCHY AND FOCUSED: Under 70 words per prompt.
+                        2. DYNAMIC SCENE DIVERSITY: Every scene must have a different sub-location and camera angle within {location_dna}.
+                        3. STRICT CHARACTER & OUTFIT LOCK (ZERO CLOTHING DRIFT):
+{clothing_directives}
+                           - In EVERY single scene prompt, you MUST explicitly specify each character's outfit: {chars_prompt_lock}.
+                           - STRICT NEGATIVE CLOTHING: ABSOLUTELY NO HOODIES, NO NAVY JACKETS, NO BLACK T-SHIRTS, NO SWEATERS.
+
+                        4. ABSOLUTE ZERO SPEECH BUBBLES & ZERO ON-SCREEN TEXT (STRICT PHOTOREALISM):
+                           - This is a photorealistic live-action film still photograph, NOT a comic book.
+                           - ABSOLUTELY FORBIDDEN: ZERO speech bubbles, ZERO comic dialogue balloons, ZERO speech callouts, ZERO floating text, ZERO subtitles, ZERO typography rendered on image.
+                           - Clean frame, no text, no watermark.
 
                         Format for each scene:
-                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {tags_str} [describe dynamic physical action and expressive faces matching the story]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, cinematic lighting, identical facial likeness to character reference sheet with zero drift, clean frame, no text, no watermark. Audio dialogue track: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
+                        #scene[N] A cinematic 16:9 4K photography keyframe still image. Setting: [specific distinct sub-spot in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic physical action, natural body posture, and vivid facial expressions matching the story beat]. {art_prompt}. Masterwork 8k resolution, shot on 35mm lens, natural cinematic lighting, identical facial likeness and outfit to character reference sheet with zero drift. Clean live-action photo, absolute zero speech bubbles, zero comic text balloons, no subtitles, no floating text, no watermark. Audio dialogue script: [Speaker] says, "[Short natural funny dialogue in Khmer language matching this scene]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -893,30 +942,33 @@ with tab_create:
                     else: # Text to Video
                         system_prompt = f"""
                         You are an elite Hollywood Director for Google Flow (Veo) and AI video generators.
-                        Generate exactly {num_clips} continuous 10-second cinematic video prompts.
+                        Generate exactly {num_clips} continuous 10-second cinematic video prompts for a {duration_min}-minute drama ({num_clips} scenes).
 
                         STRICT MASTER DIRECTIVES (FAITHFUL STORY & SMART CHARACTER MAPPING):
-                        1. STORY FIDELITY & SMART CHARACTER SQUAD CONSOLIDATION:
-                           - If the user provides a custom script or scene-by-scene story (such as mirror reflection, Bioaqua mask, teasing, selfie), YOU MUST 100% FAITHFULLY FOLLOW THE USER'S EXACT SCENES, PLOT, JOKES, AND DIALOGUE! Do NOT replace it with travel/asking-mom stories!
-                           - SMART CHARACTER CONSOLIDATION: If the user's custom story mentions many characters (e.g. សីម៉ា, អាណា, លីសា, តុលា, សុផា), but only {len(chars_data)} characters are configured in this tool ({tags_str}), SMARTLY CONSOLIDATE AND MAP all the roles, dialogues, and funny teasing into the active characters ({tags_str})! Keep all the humor, the Bioaqua masking, the uneven mask jokes, and the final selfie punchline 100% intact!
-                           - (Only if the user gave a very generic prompt like 'តួអង្គទាំងពីរទៅដើរលេង', follow the 3-act travel arc: Scene 1 Asking Mom / Call, Scene 2 Packing & Pickup, Scene 3 On the road, Scene 4 Pit stop, Scene 5 Destination, Scene 6 Meaningful ending).
+                        1. STORY FIDELITY & EXACT SCENE PROGRESSION:
+                           - If the user provides a custom script or scene-by-scene story (such as gaming bedroom, mirror reflection, Bioaqua mask, teasing, selfie, debt joke), YOU MUST 100% FAITHFULLY FOLLOW THE USER'S EXACT SCENES, PLOT, JOKES, AND DIALOGUE! Do NOT replace it with travel/asking-mom stories!
+                           - Generate all {num_clips} scenes sequentially from #scene1 up to #scene{num_clips}.
+                           - SMART CHARACTER CONSOLIDATION: Map all dialogues and comedic teasing into the active squad ({tags_str}).
 
                         2. STRICT CLOTHING & APPEARANCE LOCK (ZERO CLOTHING DRIFT):
 {clothing_directives}
-                           - Characters MUST strictly wear their configured outfit in every scene. ABSOLUTELY NO DENIM JACKETS, NO SWEATERS, NO OUTFIT CHANGES unless the script explicitly specifies changing into something (like applying a Bioaqua face mask).
+                           - In EVERY scene prompt, you MUST explicitly specify each character's outfit: {chars_prompt_lock}.
+                           - ABSOLUTELY NO HOODIES, NO DARK JACKETS, NO BLACK T-SHIRTS, NO SWEATERS, NO UNREQUESTED DENIM JACKETS.
 
                         3. ABSOLUTE ZERO SPEECH BUBBLES & ZERO ON-SCREEN TEXT:
-                           - Clean cinematic video frame. Absolutely NO speech bubbles, NO comic text balloons, NO floating text, NO subtitles, NO typography rendered on screen.
+                           - Clean cinematic live-action video frame.
+                           - Absolutely NO speech bubbles, NO comic text balloons, NO floating text, NO subtitles, NO typography rendered on screen.
+                           - Spoken dialogue is for audio track only, NEVER render as a visual bubble or text.
 
-                        4. PUNCHY & CONCISE: Every scene prompt must be around 65-75 words. Never write long bloated essays.
+                        4. PUNCHY & CONCISE: Every scene prompt must be around 65-75 words.
 
                         5. CHARACTER SQUAD LOCK ({len(chars_data)} CHARACTERS):
 {squad_summary}
 {c3_desc}
                            - All characters have identical facial likeness to character reference sheet with zero drift. Distinct individuals.
 
-                        Format for each prompt (follow this exact structure):
-                        #scene[N] A cinematic 10-second 4K clip in 16:9 widescreen. Setting: [specific distinct sub-location for this scene]. Action: {tags_str} [describe dynamic squad action, group interactions, and expressions matching the user's story beat]. [Camera movement]. Photorealistic live-action, natural lighting. Identical facial features and exact clothing matching character reference image with zero outfit change, no added jackets, zero clothing drift. Clean cinematic live-action frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, zero on-screen typography, no watermark. Voice assignment: {voice_rules}. Audio dialogue track only (do NOT render visual speech balloon or text): [Speaker] says, "[Short natural funny dialogue in Khmer language matching the story]"
+                        Format for each prompt:
+                        #scene[N] A cinematic 10-second 4K clip in 16:9 widescreen. Setting: [specific distinct sub-location in {location_dna}]. Action: {chars_prompt_lock} [describe dynamic squad action, natural micro-movements, and expressions matching the user's story beat]. [Camera movement]. Photorealistic live-action, natural lighting. Identical facial features and exact clothing matching character reference image with zero outfit change, strictly no hoodies, no dark jackets, zero clothing drift. Clean cinematic live-action frame, absolute zero speech bubbles, zero comic text balloons, no subtitles, zero on-screen typography, no watermark. Voice assignment: {voice_rules}. Audio dialogue track only (spoken audio only, strictly forbidden to render visual speech bubbles): [Speaker] says, "[Short natural funny dialogue in Khmer language matching the story]"
 
                         Rules:
                         - Start with #scene1, #scene2... up to #scene{num_clips}.
@@ -1007,7 +1059,7 @@ with tab_create:
                 with col_target:
                     st.markdown(f"**👤 Reference: `{c['tag']}`**")
                     st.caption(f"📌 {c['gender_desc']}\n\n👗 ខោអាវ: {c['dna']}")
-                    turnaround_prompt = f"Ultra-detailed character turnaround reference sheet of {c['tag']} ({c['gender_desc']}, {c['dna']}). Solid clean white background, 8 distinct angles in a 2x4 grid: top row displays full-body front view, three-quarter turn, side profile view, and back view; bottom row displays high-detail close-up facial portraits front view, 3/4 turn smiling, side profile, and 45-degree angle. Masterpiece studio photography, uniform natural soft lighting, razor-sharp focus, consistent facial geometry and identical clothing across all angles, zero morphing, zero blur, professional model sheet."
+                    turnaround_prompt = f"Ultra-detailed character turnaround reference sheet of {c['tag']} ({c['gender_desc']}). Strictly wearing {c['dna']}. ABSOLUTELY FORBIDDEN: NO dark hoodies, NO navy jackets, NO black t-shirts, NO sweaters, NO clothing drift. Solid clean white background, 8 distinct angles in a 2x4 grid: top row displays full-body front view, three-quarter turn, side profile view, and back view; bottom row displays high-detail close-up facial portraits front view, 3/4 turn smiling, side profile, and 45-degree angle. Masterpiece studio photography, uniform natural soft lighting, razor-sharp focus, consistent facial geometry and 100% identical clothing across all angles, zero morphing, zero blur, professional model sheet."
                     st.text_area(f"Turnaround Prompt ({c['tag']}):", value=turnaround_prompt, height=90, key=f"tp_{ci}")
 
             st.markdown("---")
@@ -1056,16 +1108,23 @@ with tab_create:
         for idx, scene_content in enumerate(scenes, start=1):
             full_scene_str = f"#scene{scene_content}"
             khmer_speech = extract_dialogue(scene_content, story_input, idx)
+
+            clean_visual = re.sub(r'Audio dialogue (?:track|script)[^:]*:.*$', '', full_scene_str, flags=re.IGNORECASE).strip()
+            clean_visual = re.sub(r'Voice assignment:.*$', '', clean_visual, flags=re.IGNORECASE).strip()
+            if not clean_visual.endswith('.'):
+                clean_visual += '.'
             
             with st.container():
-                st.markdown(f'<div class="scene-box"><span style="font-weight:700; color:#fb7185;">🎬 ឈុតទី {idx} (10 វិនាទី)</span> | <span style="font-size:12px; color:#22c55e;">🔒 Custom Locked Continuity</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="scene-box"><span style="font-weight:700; color:#fb7185;">🎬 ឈុតទី {idx} (10 វិនាទី)</span> | <span style="font-size:12px; color:#22c55e;">🔒 Locked Continuity & Zero Speech Bubbles</span></div>', unsafe_allow_html=True)
                 
                 c_left, c_right = st.columns([2, 1])
                 with c_left:
                     st.code(full_scene_str, language="text")
+                    with st.expander("🛡️ ចម្លង Prompt រូបភាពសុទ្ធ (គ្មាន Speech Bubble គ្មានអក្សរលើរូបភាព ១០០%):", expanded=False):
+                        st.code(clean_visual, language="text")
                 with c_right:
                     if khmer_speech:
-                        st.markdown(f"🗣️ **Script និយាយ:** *\"{khmer_speech}\"*")
+                        st.markdown(f"🗣️ **Script និយាយ (Audio Voiceover):** *\"{khmer_speech}\"*")
                         if enable_tts and HAS_GTTS:
                             audio_bytes = get_khmer_audio_cached(khmer_speech)
                             if audio_bytes:
